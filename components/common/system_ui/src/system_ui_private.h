@@ -32,7 +32,14 @@ extern "C" {
 #define SYSTEM_UI_STOP_TIMEOUT_MS 5000
 #define SYSTEM_UI_DEFAULT_FONT_PATH "fonts/NotoSansSC-Regular-sub.ttf"
 #define SYSTEM_UI_DEFAULT_FONT_SIZE 24
-#define SYSTEM_UI_CLOCK_FONT_SIZE 72
+#define SYSTEM_UI_TITLE_FONT_PATH "fonts/Bungee-Regular.ttf"
+#define SYSTEM_UI_TAGLINE_FONT_PATH "fonts/RussoOne-Regular.ttf"
+#define SYSTEM_UI_TITLE_FONT_PCT 26
+#define SYSTEM_UI_TAGLINE_FONT_PCT 8
+#define SYSTEM_UI_TAGLINE_FONT_MIN 14
+#define SYSTEM_UI_TAGLINE_FONT_MAX 28
+#define SYSTEM_UI_TITLE_FONT_MIN 40
+#define SYSTEM_UI_TITLE_FONT_MAX 84
 #define SYSTEM_UI_PATH_MAX 256
 #define SYSTEM_UI_LAUNCHER_MAX_APPS 32
 #define SYSTEM_UI_LAUNCHER_ID_LEN 64
@@ -67,16 +74,36 @@ typedef system_ui_tasks_stop_all_cb_t system_ui_jobs_stop_all_cb_t;
 #define SYSTEM_UI_COLOR_MUTED 0x3c4350
 #define SYSTEM_UI_COLOR_BUTTON_BG 0x0d0f14
 #define SYSTEM_UI_COLOR_BUTTON_TEXT 0xf2f4f8
+/* Mono panels have no colour: state colours collapse to ink. */
+#define SYSTEM_UI_COLOR_NEON_PINK SYSTEM_UI_COLOR_TEXT
+#define SYSTEM_UI_COLOR_SUN SYSTEM_UI_COLOR_MUTED
+#define SYSTEM_UI_COLOR_DUSK SYSTEM_UI_COLOR_FAINT
+#define SYSTEM_UI_COLOR_ACCENT SYSTEM_UI_COLOR_TEXT
+#define SYSTEM_UI_COLOR_OK SYSTEM_UI_COLOR_TEXT
+#define SYSTEM_UI_COLOR_WARN SYSTEM_UI_COLOR_MUTED
+#define SYSTEM_UI_COLOR_ERR SYSTEM_UI_COLOR_FAINT
+#define SYSTEM_UI_COLOR_THINK SYSTEM_UI_COLOR_TEXT
+#define SYSTEM_UI_COLOR_TOOL SYSTEM_UI_COLOR_TEXT
 #else
-#define SYSTEM_UI_COLOR_BG 0x0d0f14
-#define SYSTEM_UI_COLOR_SURFACE 0x161a24
-#define SYSTEM_UI_COLOR_PANEL 0x1f2531
-#define SYSTEM_UI_COLOR_LINE 0x3a4250
-#define SYSTEM_UI_COLOR_FAINT 0x707888
-#define SYSTEM_UI_COLOR_TEXT 0xf2f4f8
-#define SYSTEM_UI_COLOR_MUTED 0x9aa2b0
-#define SYSTEM_UI_COLOR_BUTTON_BG 0xf2f4f8
-#define SYSTEM_UI_COLOR_BUTTON_TEXT 0x0d0f14
+/* Vice City night: deep indigo base with hot pink, cyan and sunset orange neon. */
+#define SYSTEM_UI_COLOR_BG 0x12072a
+#define SYSTEM_UI_COLOR_SURFACE 0x1f1040
+#define SYSTEM_UI_COLOR_PANEL 0x2a1656
+#define SYSTEM_UI_COLOR_LINE 0x6b3fa0
+#define SYSTEM_UI_COLOR_FAINT 0x8a74b8
+#define SYSTEM_UI_COLOR_TEXT 0xfff0fa
+#define SYSTEM_UI_COLOR_MUTED 0xc3a6e8
+#define SYSTEM_UI_COLOR_BUTTON_BG 0xff2d95
+#define SYSTEM_UI_COLOR_BUTTON_TEXT 0xfff0fa
+#define SYSTEM_UI_COLOR_ACCENT 0x00e5ff
+#define SYSTEM_UI_COLOR_NEON_PINK 0xff2d95
+#define SYSTEM_UI_COLOR_SUN 0xff8c42
+#define SYSTEM_UI_COLOR_DUSK 0x9b5de5
+#define SYSTEM_UI_COLOR_OK 0x2bffb0
+#define SYSTEM_UI_COLOR_WARN 0xffd23f
+#define SYSTEM_UI_COLOR_ERR 0xff3d6e
+#define SYSTEM_UI_COLOR_THINK 0xc77dff
+#define SYSTEM_UI_COLOR_TOOL 0x00e5ff
 #endif
 
 static inline lv_color_t system_ui_color(uint32_t hex)
@@ -138,6 +165,7 @@ typedef enum {
     SYSTEM_UI_WORK_EVENT_NETWORK_STATUS,
     SYSTEM_UI_WORK_EVENT_AGENT_STATE,
     SYSTEM_UI_WORK_EVENT_SERVICE_STATUS,
+    SYSTEM_UI_WORK_EVENT_NAV,
 } system_ui_work_event_type_t;
 
 typedef enum {
@@ -168,7 +196,9 @@ typedef struct {
         } agent_state;
         struct {
             char text[SYSTEM_UI_SERVICE_TEXT_LEN];
+            bool ok;
         } service_status;
+        system_ui_nav_t nav;
     };
     char launcher_id[SYSTEM_UI_LAUNCHER_ID_LEN];
     char launcher_title[SYSTEM_UI_LAUNCHER_TITLE_LEN];
@@ -187,15 +217,26 @@ typedef struct {
 } system_ui_jobs_row_t;
 
 typedef struct {
+    lv_obj_t *obj;
+    lv_obj_t *dot;
+    lv_obj_t *label;
+} system_ui_chip_t;
+
+typedef struct {
     lv_obj_t *home_screen;
     lv_obj_t *home_tile;
     lv_obj_t *tileview;
     lv_obj_t *launcher_first_tile;
-    lv_obj_t *status_label;
-    lv_obj_t *time_label;
-    lv_obj_t *date_label;
-    lv_obj_t *agent_label;
-    lv_timer_t *home_clock_timer;
+    lv_obj_t *launcher_tiles[SYSTEM_UI_LAUNCHER_MAX_APPS];
+    lv_obj_t *launcher_cards[SYSTEM_UI_LAUNCHER_MAX_APPS];
+    int32_t launcher_focus; /* -1: home page, otherwise app index */
+    lv_obj_t *status_bar;
+    system_ui_chip_t wifi_chip;
+    system_ui_chip_t service_chip;
+    system_ui_chip_t agent_chip;
+    lv_obj_t *title_shadow;
+    lv_obj_t *title_label;
+    lv_obj_t *tagline_label;
     lv_obj_t *overlay_root;
     lv_obj_t *overlay_dot;
     lv_timer_t *overlay_timer;
@@ -228,7 +269,10 @@ typedef struct {
     size_t launcher_app_count;
     size_t launcher_page_count;
     lv_font_t *font;
-    lv_font_t *clock_font;
+    lv_font_t *title_font;
+    lv_font_t *tagline_font;
+    uint8_t *title_font_data;
+    uint8_t *tagline_font_data;
     uint8_t *font_data;
     size_t font_data_size;
     uint32_t width;
@@ -248,6 +292,7 @@ typedef struct {
     system_ui_agent_state_t agent_state;
     char agent_text[SYSTEM_UI_AGENT_TEXT_LEN];
     char service_text[SYSTEM_UI_SERVICE_TEXT_LEN];
+    bool service_ok;
     char font_path[SYSTEM_UI_PATH_MAX];
 } system_ui_state_t;
 
@@ -260,12 +305,19 @@ static inline void system_ui_apply_font(lv_obj_t *obj)
     }
 }
 
-static inline void system_ui_apply_clock_font(lv_obj_t *obj)
+static inline void system_ui_apply_title_font(lv_obj_t *obj)
 {
-    if (obj && s_ui.clock_font) {
-        lv_obj_set_style_text_font(obj, s_ui.clock_font, 0);
-    } else {
-        system_ui_apply_font(obj);
+    system_ui_apply_font(obj);
+    if (obj && s_ui.title_font) {
+        lv_obj_set_style_text_font(obj, s_ui.title_font, 0);
+    }
+}
+
+static inline void system_ui_apply_tagline_font(lv_obj_t *obj)
+{
+    system_ui_apply_font(obj);
+    if (obj && s_ui.tagline_font) {
+        lv_obj_set_style_text_font(obj, s_ui.tagline_font, 0);
     }
 }
 
@@ -277,6 +329,7 @@ void system_ui_load_screen_locked(lv_obj_t *screen);
 esp_err_t system_ui_launcher_load_locked(void);
 esp_err_t system_ui_launcher_create_pages_locked(void);
 void system_ui_launcher_delete_locked(void);
+void system_ui_launcher_navigate_locked(system_ui_nav_t nav);
 
 esp_err_t system_ui_create_overlay_locked(void);
 void system_ui_delete_overlay_locked(void);
@@ -306,7 +359,7 @@ void system_ui_callback_unlock(void);
 
 esp_err_t system_ui_set_network_status(bool sta_connected, const char *ap_ssid);
 esp_err_t system_ui_post_agent_state(system_ui_agent_state_t state, const char *text);
-esp_err_t system_ui_post_service_status(const char *text);
+esp_err_t system_ui_post_service_status(const char *name, bool ok);
 esp_err_t system_ui_overlay_set_visible(bool visible);
 esp_err_t system_ui_launcher_set_select_callback(system_ui_launcher_select_cb_t cb, void *user_ctx);
 esp_err_t system_ui_jobs_set_provider(system_ui_jobs_provider_cb_t cb, void *user_ctx);

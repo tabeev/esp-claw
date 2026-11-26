@@ -1,4 +1,6 @@
 dependencies:
+  espressif/button: "*"
+
   claw_hw_registry:
     path: ../claw_hw_registry
 

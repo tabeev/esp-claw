@@ -39,6 +39,10 @@ set(app_claw_srcs
     "app_lua_modules.c"
 )
 
+if(CONFIG_APP_CLAW_SYSTEM_UI_ENABLE)
+    list(APPEND app_claw_srcs "app_claw_nav_button.c")
+endif()
+
 if(CONFIG_APP_CLAW_ENABLE_CLI)
     list(APPEND app_claw_srcs "app_claw_cli.c")
 endif()
@@ -52,6 +56,7 @@ idf_component_register(
         claw_hw_registry
     PRIV_REQUIRES
         console
+        button
 )
 
 # Use build-local Board Manager copies with hooks around its driver lifecycle.

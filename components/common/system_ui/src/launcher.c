@@ -437,16 +437,8 @@ static system_ui_launcher_grid_t system_ui_launcher_compute_grid(int32_t width, 
     };
 }
 
-static void system_ui_launcher_app_event_cb(lv_event_t *event)
+static void system_ui_launcher_post_select(const system_ui_launcher_app_t *app)
 {
-    if (lv_event_get_code(event) != LV_EVENT_CLICKED) {
-        return;
-    }
-    system_ui_launcher_app_t *app = (system_ui_launcher_app_t *)lv_event_get_user_data(event);
-    if (!app) {
-        return;
-    }
-
     system_ui_work_event_t work_event = {
         .type = SYSTEM_UI_WORK_EVENT_LAUNCHER_SELECT,
         .generation = s_ui.generation,
@@ -458,9 +450,23 @@ static void system_ui_launcher_app_event_cb(lv_event_t *event)
     (void)system_ui_post_work_event(&work_event, 0);
 }
 
+static void system_ui_launcher_app_event_cb(lv_event_t *event)
+{
+    if (lv_event_get_code(event) != LV_EVENT_CLICKED) {
+        return;
+    }
+    system_ui_launcher_app_t *app = (system_ui_launcher_app_t *)lv_event_get_user_data(event);
+    if (app) {
+        system_ui_launcher_post_select(app);
+    }
+}
+
+#define SYSTEM_UI_LAUNCHER_FOCUS_RADIUS_PX 12
+
 static esp_err_t system_ui_launcher_create_app_card(lv_obj_t *tile,
                                                      const system_ui_launcher_grid_t *grid,
                                                      size_t tile_index,
+                                                     size_t app_index,
                                                      system_ui_launcher_app_t *app)
 {
     int32_t col = (int32_t)(tile_index % (size_t)grid->cols);
@@ -477,6 +483,11 @@ static esp_err_t system_ui_launcher_create_app_card(lv_obj_t *tile,
     lv_obj_set_style_border_width(card, 0, 0);
     lv_obj_set_style_pad_all(card, 0, 0);
     lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_border_color(card, system_ui_color(SYSTEM_UI_COLOR_ACCENT), 0);
+    lv_obj_set_style_radius(card, SYSTEM_UI_LAUNCHER_FOCUS_RADIUS_PX, 0);
+    if (app_index < SYSTEM_UI_LAUNCHER_MAX_APPS) {
+        s_ui.launcher_cards[app_index] = card;
+    }
 
     /* Decode lazily with the exact side selected by the current parent grid. */
     if (app->icon_path[0]) {
@@ -583,6 +594,9 @@ static esp_err_t system_ui_launcher_create_page_locked(size_t page_index)
     if (page_index == 0) {
         s_ui.launcher_first_tile = tile;
     }
+    if (page_index < SYSTEM_UI_LAUNCHER_MAX_APPS) {
+        s_ui.launcher_tiles[page_index] = tile;
+    }
     lv_obj_set_style_bg_color(tile, system_ui_color(SYSTEM_UI_COLOR_BG), 0);
     lv_obj_set_style_bg_opa(tile, LV_OPA_COVER, 0);
     lv_obj_clear_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
@@ -608,13 +622,14 @@ static esp_err_t system_ui_launcher_create_page_locked(size_t page_index)
     size_t start = page_index * tiles_per_page;
     system_ui_launcher_app_t *app = system_ui_launcher_app_at(start);
     for (size_t i = 0; app && i < tiles_per_page; i++, app = app->next) {
-        ESP_RETURN_ON_ERROR(system_ui_launcher_create_app_card(tile, &grid, i, app), SYSTEM_UI_TAG, "create launcher app card failed");
+        ESP_RETURN_ON_ERROR(system_ui_launcher_create_app_card(tile, &grid, i, start + i, app), SYSTEM_UI_TAG, "create launcher app card failed");
     }
     return ESP_OK;
 }
 
 esp_err_t system_ui_launcher_create_pages_locked(void)
 {
+    s_ui.launcher_focus = -1;
     for (size_t i = 0; i < s_ui.launcher_page_count; i++) {
         ESP_RETURN_ON_ERROR(system_ui_launcher_create_page_locked(i),
                             SYSTEM_UI_TAG, "create launcher page failed");
@@ -627,6 +642,66 @@ void system_ui_launcher_delete_locked(void)
     system_ui_launcher_unload_icons();
     s_ui.launcher_page_count = 0;
     s_ui.launcher_first_tile = NULL;
+    memset(s_ui.launcher_tiles, 0, sizeof(s_ui.launcher_tiles));
+    memset(s_ui.launcher_cards, 0, sizeof(s_ui.launcher_cards));
+    s_ui.launcher_focus = -1;
+}
+
+#define SYSTEM_UI_LAUNCHER_FOCUS_BORDER_PX 2
+
+static void system_ui_launcher_set_focus_border_locked(int32_t index, bool focused)
+{
+    if (index < 0 || index >= (int32_t)SYSTEM_UI_LAUNCHER_MAX_APPS || !s_ui.launcher_cards[index]) {
+        return;
+    }
+    lv_obj_set_style_border_width(s_ui.launcher_cards[index],
+                                  focused ? SYSTEM_UI_LAUNCHER_FOCUS_BORDER_PX : 0, 0);
+}
+
+void system_ui_launcher_navigate_locked(system_ui_nav_t nav)
+{
+    size_t tiles_per_page = system_ui_launcher_tiles_per_page();
+
+    /* A Lua app owns the display; button input belongs to it. */
+    if (display_service_has_exclusive_session() || !s_ui.tileview || !s_ui.home_tile) {
+        return;
+    }
+
+    if (nav == SYSTEM_UI_NAV_SELECT) {
+        if (s_ui.jobs_visible) {
+            system_ui_jobs_set_visible_locked(false);
+        } else if (s_ui.launcher_focus >= 0) {
+            system_ui_launcher_app_t *app = system_ui_launcher_app_at((size_t)s_ui.launcher_focus);
+            if (app) {
+                system_ui_launcher_post_select(app);
+            }
+        } else {
+            system_ui_jobs_set_visible_locked(true);
+        }
+        return;
+    }
+
+    if (s_ui.jobs_visible) {
+        system_ui_jobs_set_visible_locked(false);
+        return;
+    }
+    if (s_ui.launcher_app_count == 0 || tiles_per_page == 0) {
+        return;
+    }
+
+    system_ui_launcher_set_focus_border_locked(s_ui.launcher_focus, false);
+    s_ui.launcher_focus++;
+    if (s_ui.launcher_focus >= (int32_t)s_ui.launcher_app_count) {
+        s_ui.launcher_focus = -1;
+        lv_tileview_set_tile(s_ui.tileview, s_ui.home_tile, LV_ANIM_OFF);
+        return;
+    }
+
+    size_t page = (size_t)s_ui.launcher_focus / tiles_per_page;
+    if (page < SYSTEM_UI_LAUNCHER_MAX_APPS && s_ui.launcher_tiles[page]) {
+        lv_tileview_set_tile(s_ui.tileview, s_ui.launcher_tiles[page], LV_ANIM_OFF);
+    }
+    system_ui_launcher_set_focus_border_locked(s_ui.launcher_focus, true);
 }
 
 esp_err_t system_ui_launcher_set_select_callback(system_ui_launcher_select_cb_t cb, void *user_ctx)

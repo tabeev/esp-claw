@@ -23,6 +23,11 @@ extern "C" {
 #define SYSTEM_UI_SERVICE_TEXT_LEN 24
 
 typedef enum {
+    SYSTEM_UI_NAV_NEXT = 0, /* focus next launcher app; wraps back to the home page */
+    SYSTEM_UI_NAV_SELECT,   /* launch focused app, or toggle the task panel on home */
+} system_ui_nav_t;
+
+typedef enum {
     SYSTEM_UI_AGENT_IDLE = 0,
     SYSTEM_UI_AGENT_PREPARING,
     SYSTEM_UI_AGENT_THINKING,

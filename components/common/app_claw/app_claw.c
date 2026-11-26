@@ -6,6 +6,7 @@
 #include "app_claw.h"
 #include "audio_hub.h"
 #include "app_claw_cli.h"
+#include "app_claw_nav_button.h"
 #include "app_capabilities.h"
 #if CONFIG_APP_CLAW_SYSTEM_UI_ENABLE
 #include "system_ui.h"
@@ -595,8 +596,7 @@ static esp_err_t app_claw_delete_session_history(const char *session_id,
 
 #if CONFIG_APP_CLAW_SYSTEM_UI_ENABLE
 #define APP_CLAW_UI_STATUS_POLL_MS 300
-#define APP_CLAW_UI_TG_TEXT_ON  "TG ON"
-#define APP_CLAW_UI_TG_TEXT_OFF "TG OFF"
+#define APP_CLAW_UI_TG_NAME "TG"
 
 static esp_timer_handle_t s_ui_status_timer;
 
@@ -643,7 +643,7 @@ static void app_claw_ui_status_timer_cb(void *arg)
 #if CONFIG_APP_CLAW_CAP_IM_TG
     int tg = cap_im_tg_is_online() ? 1 : 0;
     if (tg != s_last_tg) {
-        if (system_ui_set_service_status(tg ? APP_CLAW_UI_TG_TEXT_ON : APP_CLAW_UI_TG_TEXT_OFF) == ESP_OK) {
+        if (system_ui_set_service_status(APP_CLAW_UI_TG_NAME, tg != 0) == ESP_OK) {
             s_last_tg = tg;
         }
     }
@@ -680,6 +680,7 @@ esp_err_t app_claw_ui_start(void)
     ESP_RETURN_ON_ERROR(cap_lua_register_job_event_cb(app_claw_lua_job_event_cb, NULL),
                         TAG, "register Lua job event callback failed");
 #endif
+    ESP_RETURN_ON_ERROR(app_claw_nav_button_start(), TAG, "start nav button failed");
     return app_claw_ui_status_start();
 #else
     return ESP_OK;
