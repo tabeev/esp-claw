@@ -153,6 +153,17 @@ static void system_ui_handle_service_status_event(const system_ui_work_event_t *
     system_ui_unlock();
 }
 
+static void system_ui_handle_nav_event(const system_ui_work_event_t *event)
+{
+    if (system_ui_lock() != ESP_OK) {
+        return;
+    }
+    if (s_ui.started && event->generation == s_ui.generation) {
+        system_ui_launcher_navigate_locked(event->nav);
+    }
+    system_ui_unlock();
+}
+
 static void system_ui_event_task(void *arg)
 {
     (void)arg;
@@ -205,6 +216,9 @@ static void system_ui_event_task(void *arg)
             break;
         case SYSTEM_UI_WORK_EVENT_SERVICE_STATUS:
             system_ui_handle_service_status_event(&event);
+            break;
+        case SYSTEM_UI_WORK_EVENT_NAV:
+            system_ui_handle_nav_event(&event);
             break;
         case SYSTEM_UI_WORK_EVENT_STOP:
         default:
@@ -532,6 +546,18 @@ esp_err_t system_ui_set_agent_state(system_ui_agent_state_t state, const char *t
 esp_err_t system_ui_set_service_status(const char *text)
 {
     return system_ui_post_service_status(text);
+}
+
+esp_err_t system_ui_navigate(system_ui_nav_t nav)
+{
+    system_ui_work_event_t event = {
+        .type = SYSTEM_UI_WORK_EVENT_NAV,
+    };
+
+    ESP_RETURN_ON_FALSE(s_ui.started, ESP_ERR_INVALID_STATE, SYSTEM_UI_TAG, "runtime not started");
+    event.generation = s_ui.generation;
+    event.nav = nav;
+    return system_ui_post_work_event(&event, 0);
 }
 
 esp_err_t system_ui_show_task_panel(bool visible)

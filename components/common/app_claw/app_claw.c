@@ -6,6 +6,7 @@
 #include "app_claw.h"
 #include "audio_hub.h"
 #include "app_claw_cli.h"
+#include "app_claw_nav_button.h"
 #include "app_capabilities.h"
 #if CONFIG_APP_CLAW_SYSTEM_UI_ENABLE
 #include "system_ui.h"
@@ -680,6 +681,7 @@ esp_err_t app_claw_ui_start(void)
     ESP_RETURN_ON_ERROR(cap_lua_register_job_event_cb(app_claw_lua_job_event_cb, NULL),
                         TAG, "register Lua job event callback failed");
 #endif
+    ESP_RETURN_ON_ERROR(app_claw_nav_button_start(), TAG, "start nav button failed");
     return app_claw_ui_status_start();
 #else
     return ESP_OK;

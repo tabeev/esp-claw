@@ -19,3 +19,6 @@ CONFIG_ESP_BOARD_PERIPH_I2S_SUPPORT=y
 # Console on the native USB (USB-Serial/JTAG)
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# BOOT button (GPIO0) navigates the system UI: click = next app, long press = open/select
+CONFIG_APP_CLAW_NAV_BUTTON_GPIO=0

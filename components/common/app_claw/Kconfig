@@ -16,6 +16,17 @@ menu "App Claw Config"
             is enabled, Lua LVGL scripts switch screens inside this runtime
             instead of initializing LVGL directly.
 
+    config APP_CLAW_NAV_BUTTON_GPIO
+        int "System UI navigation button GPIO (-1 = disabled)"
+        depends on APP_CLAW_SYSTEM_UI_ENABLE
+        range -1 48
+        default -1
+        help
+            GPIO of an active-low button used to navigate the system UI on
+            boards without touch. Short press moves focus across launcher
+            apps and back to the clock page; long press launches the focused
+            app, or opens/closes the task panel from the clock page.
+
     config APP_CLAW_MAX_TOOL_ITERATIONS
         int "Maximum tool-call iterations per turn"
         default 64

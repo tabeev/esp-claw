@@ -138,6 +138,7 @@ typedef enum {
     SYSTEM_UI_WORK_EVENT_NETWORK_STATUS,
     SYSTEM_UI_WORK_EVENT_AGENT_STATE,
     SYSTEM_UI_WORK_EVENT_SERVICE_STATUS,
+    SYSTEM_UI_WORK_EVENT_NAV,
 } system_ui_work_event_type_t;
 
 typedef enum {
@@ -169,6 +170,7 @@ typedef struct {
         struct {
             char text[SYSTEM_UI_SERVICE_TEXT_LEN];
         } service_status;
+        system_ui_nav_t nav;
     };
     char launcher_id[SYSTEM_UI_LAUNCHER_ID_LEN];
     char launcher_title[SYSTEM_UI_LAUNCHER_TITLE_LEN];
@@ -191,6 +193,9 @@ typedef struct {
     lv_obj_t *home_tile;
     lv_obj_t *tileview;
     lv_obj_t *launcher_first_tile;
+    lv_obj_t *launcher_tiles[SYSTEM_UI_LAUNCHER_MAX_APPS];
+    lv_obj_t *launcher_cards[SYSTEM_UI_LAUNCHER_MAX_APPS];
+    int32_t launcher_focus; /* -1: home page, otherwise app index */
     lv_obj_t *status_label;
     lv_obj_t *time_label;
     lv_obj_t *date_label;
@@ -277,6 +282,7 @@ void system_ui_load_screen_locked(lv_obj_t *screen);
 esp_err_t system_ui_launcher_load_locked(void);
 esp_err_t system_ui_launcher_create_pages_locked(void);
 void system_ui_launcher_delete_locked(void);
+void system_ui_launcher_navigate_locked(system_ui_nav_t nav);
 
 esp_err_t system_ui_create_overlay_locked(void);
 void system_ui_delete_overlay_locked(void);

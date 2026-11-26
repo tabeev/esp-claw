@@ -30,6 +30,8 @@ esp_err_t system_ui_set_agent_state(system_ui_agent_state_t state, const char *t
 esp_err_t system_ui_set_service_status(const char *text);
 esp_err_t system_ui_show_task_panel(bool visible);
 esp_err_t system_ui_refresh_tasks(void);
+/* Button-style navigation for boards without touch. Non-blocking. */
+esp_err_t system_ui_navigate(system_ui_nav_t nav);
 void system_ui_click_feedback(void);
 
 #ifdef __cplusplus
