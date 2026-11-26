@@ -148,6 +148,7 @@ static void system_ui_handle_service_status_event(const system_ui_work_event_t *
     }
     if (s_ui.started && event->generation == s_ui.generation) {
         strlcpy(s_ui.service_text, event->service_status.text, sizeof(s_ui.service_text));
+        s_ui.service_ok = event->service_status.ok;
         system_ui_home_update_locked();
     }
     system_ui_unlock();
@@ -543,9 +544,9 @@ esp_err_t system_ui_set_agent_state(system_ui_agent_state_t state, const char *t
     return system_ui_post_agent_state(state, text);
 }
 
-esp_err_t system_ui_set_service_status(const char *text)
+esp_err_t system_ui_set_service_status(const char *name, bool ok)
 {
-    return system_ui_post_service_status(text);
+    return system_ui_post_service_status(name, ok);
 }
 
 esp_err_t system_ui_navigate(system_ui_nav_t nav)

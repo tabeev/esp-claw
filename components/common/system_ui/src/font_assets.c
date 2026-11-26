@@ -112,6 +112,42 @@ static esp_err_t system_ui_read_font_data(const char *font_path, uint8_t **out_d
     return system_ui_read_font_file(vfs_path, out_data, out_size);
 }
 
+#if LV_USE_TINY_TTF
+static lv_font_t *system_ui_load_ttf_font(const char *path, uint32_t size, uint8_t **out_data)
+{
+    uint8_t *data = NULL;
+    size_t data_size = 0;
+    lv_font_t *font;
+
+    if (system_ui_read_font_data(path, &data, &data_size) != ESP_OK) {
+        ESP_LOGW(SYSTEM_UI_TAG, "font data load failed: %s", path);
+        return NULL;
+    }
+    font = lv_tiny_ttf_create_data_ex(data, data_size, size, LV_FONT_KERNING_NORMAL,
+                                      LV_TINY_TTF_CACHE_GLYPH_CNT);
+    if (!font) {
+        free(data);
+        ESP_LOGW(SYSTEM_UI_TAG, "font create failed: %s", path);
+        return NULL;
+    }
+    *out_data = data;
+    return font;
+}
+
+/* Title (Bungee) and tagline (Russo One, Cyrillic) fonts; missing files fall back to the UI font. */
+static void system_ui_create_display_fonts_locked(void)
+{
+    int32_t short_side = system_ui_short_side_from(s_ui.width, s_ui.height);
+    uint32_t title_size = (uint32_t)system_ui_clamp_i32(short_side * SYSTEM_UI_TITLE_FONT_PCT / 100,
+                                                        SYSTEM_UI_TITLE_FONT_MIN, SYSTEM_UI_TITLE_FONT_MAX);
+    uint32_t tagline_size = (uint32_t)system_ui_clamp_i32(short_side * SYSTEM_UI_TAGLINE_FONT_PCT / 100,
+                                                          SYSTEM_UI_TAGLINE_FONT_MIN, SYSTEM_UI_TAGLINE_FONT_MAX);
+
+    s_ui.title_font = system_ui_load_ttf_font(SYSTEM_UI_TITLE_FONT_PATH, title_size, &s_ui.title_font_data);
+    s_ui.tagline_font = system_ui_load_ttf_font(SYSTEM_UI_TAGLINE_FONT_PATH, tagline_size, &s_ui.tagline_font_data);
+}
+#endif
+
 void system_ui_create_font_locked(const char *font_path, uint32_t font_size)
 {
 #if LV_USE_TINY_TTF
@@ -147,15 +183,7 @@ void system_ui_create_font_locked(const char *font_path, uint32_t font_size)
         ESP_LOGW(SYSTEM_UI_TAG, "ui font load failed: %s", s_ui.font_path);
         return;
     }
-    uint32_t clock_font_size = (uint32_t)system_ui_clamp_i32(system_ui_short_side_from(s_ui.width, s_ui.height) * 22 / 100, 48, SYSTEM_UI_CLOCK_FONT_SIZE);
-    s_ui.clock_font = lv_tiny_ttf_create_data_ex(font_data,
-                                                 font_data_size,
-                                                 clock_font_size,
-                                                 LV_FONT_KERNING_NORMAL,
-                                                 LV_TINY_TTF_CACHE_GLYPH_CNT);
-    if (!s_ui.clock_font) {
-        ESP_LOGW(SYSTEM_UI_TAG, "ui clock font load failed: %s", s_ui.font_path);
-    }
+    system_ui_create_display_fonts_locked();
     s_ui.font_data = font_data;
     s_ui.font_data_size = font_data_size;
     lv_obj_set_style_text_font(lv_layer_top(), s_ui.font, 0);
@@ -171,10 +199,18 @@ void system_ui_create_font_locked(const char *font_path, uint32_t font_size)
 void system_ui_destroy_font_locked(void)
 {
 #if LV_USE_TINY_TTF
-    if (s_ui.clock_font) {
-        lv_tiny_ttf_destroy(s_ui.clock_font);
-        s_ui.clock_font = NULL;
+    if (s_ui.title_font) {
+        lv_tiny_ttf_destroy(s_ui.title_font);
+        s_ui.title_font = NULL;
     }
+    if (s_ui.tagline_font) {
+        lv_tiny_ttf_destroy(s_ui.tagline_font);
+        s_ui.tagline_font = NULL;
+    }
+    free(s_ui.title_font_data);
+    free(s_ui.tagline_font_data);
+    s_ui.title_font_data = NULL;
+    s_ui.tagline_font_data = NULL;
     if (s_ui.font) {
         lv_tiny_ttf_destroy(s_ui.font);
         s_ui.font = NULL;

@@ -26,8 +26,8 @@ esp_err_t system_ui_update_network(const system_ui_network_state_t *state);
 esp_err_t system_ui_set_activity(bool active);
 /* Show the agent state under the date. text may be NULL to use the default label. */
 esp_err_t system_ui_set_agent_state(system_ui_agent_state_t state, const char *text);
-/* Short text appended to the Wi-Fi status line, e.g. "TG ON". NULL or "" clears it. */
-esp_err_t system_ui_set_service_status(const char *text);
+/* Status chip next to the Wi-Fi chip, e.g. ("TG", true). NULL or "" name hides it. */
+esp_err_t system_ui_set_service_status(const char *name, bool ok);
 esp_err_t system_ui_show_task_panel(bool visible);
 esp_err_t system_ui_refresh_tasks(void);
 /* Button-style navigation for boards without touch. Non-blocking. */

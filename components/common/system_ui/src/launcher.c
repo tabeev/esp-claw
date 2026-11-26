@@ -461,6 +461,8 @@ static void system_ui_launcher_app_event_cb(lv_event_t *event)
     }
 }
 
+#define SYSTEM_UI_LAUNCHER_FOCUS_RADIUS_PX 12
+
 static esp_err_t system_ui_launcher_create_app_card(lv_obj_t *tile,
                                                      const system_ui_launcher_grid_t *grid,
                                                      size_t tile_index,
@@ -481,8 +483,8 @@ static esp_err_t system_ui_launcher_create_app_card(lv_obj_t *tile,
     lv_obj_set_style_border_width(card, 0, 0);
     lv_obj_set_style_pad_all(card, 0, 0);
     lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_border_color(card, system_ui_color(SYSTEM_UI_COLOR_TEXT), 0);
-    lv_obj_set_style_radius(card, 0, 0);
+    lv_obj_set_style_border_color(card, system_ui_color(SYSTEM_UI_COLOR_ACCENT), 0);
+    lv_obj_set_style_radius(card, SYSTEM_UI_LAUNCHER_FOCUS_RADIUS_PX, 0);
     if (app_index < SYSTEM_UI_LAUNCHER_MAX_APPS) {
         s_ui.launcher_cards[app_index] = card;
     }
